@@ -242,4 +242,4 @@ def main(page: ft.Page):
     )
 
 if __name__ == "__main__":
-    ft.run(target=main, port=8080)
+    t.app(target=main, port=8080)
