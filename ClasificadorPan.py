@@ -134,6 +134,9 @@ if grafica_idx > 0:
 
 import base64
 
+# ==================== CAPA DE INTERFAZ MÓVIL OPTIMIZADA PARA RENDER ====================
+import base64
+
 def main(page: ft.Page):
     page.title = "Pan Dulce Classifier Mobile"
     page.theme_mode = ft.ThemeMode.LIGHT
@@ -155,7 +158,7 @@ def main(page: ft.Page):
         src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRuRyTfseqkAYTVvEmgPhnrXf4jIb5RmfW_ww&s",
         width=250,
         height=250,
-        fit="contain", # Solución al desbordamiento multiplataforma
+        fit=ft.ImageFit.CONTAIN,
     )
 
     def realizar_prediccion_bytes(img_bytes):
@@ -163,7 +166,7 @@ def main(page: ft.Page):
         img = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
         
         if img is None:
-            resultado_txt.value = "Error al decodificar los datos lógicos de la imagen."
+            resultado_txt.value = "Error al decodificar la imagen en el servidor."
             page.update()
             return
             
@@ -186,23 +189,26 @@ def main(page: ft.Page):
     def procesar_archivo_seleccionado(e: ft.FilePickerResultEvent):
         if e.files:
             foto = e.files[0]
+            resultado_txt.value = "Subiendo imagen... Por favor, espera."
+            page.update()
             
             if foto.path is None:
                 upload_url = page.get_upload_url(foto.name, 600)
                 picker_dispositivo.upload_files([ft.FilePickerUploadFile(foto.name, upload_url)])
                 return
                 
+            # FLUJO DE RESPALDO PARA LOCAL (PC)
             if os.path.exists(foto.path):
                 with open(foto.path, "rb") as f:
                     img_bytes = f.read()
                 base64_img = base64.b64encode(img_bytes).decode("utf-8")
                 preview_img.src = None
                 preview_img.src_base64 = base64_img
-                page.update()
                 realizar_prediccion_bytes(img_bytes)
 
     def on_upload_complete(e: ft.FilePickerUploadEvent):
         ruta_temporal = os.path.join("uploads", e.file_name)
+        
         if os.path.exists(ruta_temporal):
             with open(ruta_temporal, "rb") as f:
                 img_bytes = f.read()
@@ -210,6 +216,7 @@ def main(page: ft.Page):
             base64_img = base64.b64encode(img_bytes).decode("utf-8")
             preview_img.src = None
             preview_img.src_base64 = base64_img
+            resultado_txt.value = "Procesando predicción..."
             page.update()
             
             realizar_prediccion_bytes(img_bytes)
@@ -248,7 +255,7 @@ def main(page: ft.Page):
                     on_click=lambda _: picker_dispositivo.pick_files(
                         allow_multiple=False, 
                         file_type=ft.FilePickerFileType.IMAGE,
-                        camera_capture=True 
+                        camera_capture=True # Enlace directo al hardware móvil mediante HTTPS
                     )
                 ),
             ],
