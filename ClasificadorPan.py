@@ -3,6 +3,7 @@ import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 import flet as ft
+import base64
 
 from sklearn.model_selection import train_test_split
 from sklearn.svm import SVC
@@ -131,6 +132,8 @@ if grafica_idx > 0:
     plt.savefig("comparacion_completa_fondos.png", dpi=150)
     print("\nSúper gráfica de 4 paneles guardada como 'comparacion_completa_fondos.png'")
 
+# ==================== CAPA DE INTERFAZ MÓVIL (FLET) ====================
+
 def main(page: ft.Page):
     page.title = "Pan Dulce Classifier Mobile"
     page.theme_mode = ft.ThemeMode.LIGHT
@@ -140,9 +143,6 @@ def main(page: ft.Page):
     page.window_width = 400       
     page.window_height = 750      
     page.window_resizable = False 
-    
-    if not os.path.exists("uploads"):
-        os.makedirs("uploads")
 
     resultado_txt = ft.Text(
         "Selecciona o toma una foto para clasificar", 
@@ -158,10 +158,12 @@ def main(page: ft.Page):
         fit="contain",
     )
 
-    def realizar_prediccion(path_imagen):
-        img = cv2.imread(path_imagen)
+    def realizar_prediccion_bytes(img_bytes):
+        np_arr = np.frombuffer(img_bytes, np.uint8)
+        img = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+        
         if img is None:
-            resultado_txt.value = "Error al procesar el archivo físico de la imagen."
+            resultado_txt.value = "Error al decodificar los datos de la imagen."
             page.update()
             return
             
@@ -181,25 +183,43 @@ def main(page: ft.Page):
         )
         page.update()
 
-    def procesar_archivo_seleccionado(files):
-        if files:
-            foto = files[0]
-            if foto.path and os.path.exists(foto.path):
-                preview_img.src = foto.path
-                preview_img.src_base64 = None
+    def procesar_archivo_seleccionado(e: ft.FilePickerResultEvent):
+        if e.files:
+            foto = e.files[0]
+            
+            if e.files[0].path is None:
+                upload_url = page.get_upload_url(foto.name, 600)
+                picker_galeria.upload_files([ft.FilePickerUploadFile(foto.name, upload_url)])
+                return
+                
+            if os.path.exists(foto.path):
+                with open(foto.path, "rb") as f:
+                    img_bytes = f.read()
+                base64_img = base64.b64encode(img_bytes).decode("utf-8")
+                preview_img.src = None
+                preview_img.src_base64 = base64_img
                 page.update()
-                realizar_prediccion(foto.path)
+                realizar_prediccion_bytes(img_bytes)
 
-    picker_galeria = ft.FilePicker(
-        on_result=lambda e: procesar_archivo_seleccionado(e.files)
-    )
-    
-    picker_camara = ft.FilePicker(
-        on_result=lambda e: procesar_archivo_seleccionado(e.files)
-    )
+    def on_upload_complete(e: ft.FilePickerUploadEvent):
+        ruta_temporal = os.path.join("uploads", e.file_name)
+        if os.path.exists(ruta_temporal):
+            with open(ruta_temporal, "rb") as f:
+                img_bytes = f.read()
+            base64_img = base64.b64encode(img_bytes).decode("utf-8")
+            preview_img.src = None
+            preview_img.src_base64 = base64_img
+            page.update()
+            realizar_prediccion_bytes(img_bytes)
+            try:
+                os.remove(ruta_temporal) 
+            except:
+                pass
+
+    picker_galeria = ft.FilePicker(on_result=procesar_archivo_seleccionado)
+    picker_galeria.on_upload_progress = on_upload_complete
     
     page.overlay.append(picker_galeria)
-    page.overlay.append(picker_camara)
 
     page.add(
         ft.AppBar(title=ft.Text("App - Analizador de Panes"), bgcolor=ft.Colors.SURFACE_CONTAINER_HIGHEST),
@@ -222,7 +242,7 @@ def main(page: ft.Page):
                     "Tomar Fotografía",
                     icon=ft.Icons.CAMERA_ALT,
                     width=280,
-                    on_click=lambda _: picker_camara.pick_files(
+                    on_click=lambda _: picker_galeria.pick_files(
                         allow_multiple=False, 
                         file_type=ft.FilePickerFileType.IMAGE,
                         camera_capture=True
@@ -243,4 +263,6 @@ def main(page: ft.Page):
     )
 
 if __name__ == "__main__":
-    t.app(target=main, port=8080)
+    if not os.path.exists("uploads"):
+        os.makedirs("uploads")
+    ft.app(target=main, port=8080, upload_dir="uploads")
