@@ -224,7 +224,8 @@ def main(page: ft.Page):
                     width=280,
                     on_click=lambda _: picker_camara.pick_files(
                         allow_multiple=False, 
-                        file_type=ft.FilePickerFileType.IMAGE
+                        file_type=ft.FilePickerFileType.IMAGE,
+                        camera_capture=True
                     )
                 ),
             ],
