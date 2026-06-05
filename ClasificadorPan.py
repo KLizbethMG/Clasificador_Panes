@@ -155,7 +155,7 @@ def main(page: ft.Page):
         src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRuRyTfseqkAYTVvEmgPhnrXf4jIb5RmfW_ww&s",
         width=250,
         height=250,
-        fit=ft.ImageFit.CONTAIN,
+        fit="contain",
     )
 
     def realizar_prediccion(path_imagen):
